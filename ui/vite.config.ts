@@ -7,7 +7,6 @@ export default defineConfig({
     proxy: {
       '/query': 'http://127.0.0.1:8000',
       '/catalog': 'http://127.0.0.1:8000',
-      '/pipeline': 'http://127.0.0.1:8000',
     },
   },
 })

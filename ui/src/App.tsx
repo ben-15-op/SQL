@@ -4,7 +4,6 @@ import { QueryGraph } from './components/QueryGraph';
 import { StorageMonitor } from './components/StorageMonitor';
 import { CatalogView } from './components/CatalogView';
 import { ArchitectureView } from './components/ArchitectureView';
-import { PipelineDebugger } from './components/PipelineDebugger';
 
 const C = {
   indigo: '#534AB7',
@@ -37,7 +36,7 @@ const QUICK_QUERIES = [
   { label: 'Drop Tables', sql: "DROP TABLE Orders;\nDROP TABLE Customers;" },
 ];
 
-type MainTab = 'query' | 'pipeline' | 'storage' | 'catalog' | 'architecture';
+type MainTab = 'query' | 'storage' | 'catalog' | 'architecture';
 type ResultTab = 'results' | 'plan' | 'algebra' | 'timings';
 
 export default function App() {
@@ -72,15 +71,11 @@ export default function App() {
     setLoading(true);
     setResponse(null);
     const statements = query.split(';').map(s => s.trim()).filter(s => s.length > 0);
-    const responses: any[] = [];
+    let lastResponse: any = null;
     try {
       for (const stmt of statements) {
-        const res = (await axios.post('/query', { query: stmt + ';' })).data;
-        responses.push(res);
+        lastResponse = (await axios.post('/query', { query: stmt + ';' })).data;
       }
-      // Show last SELECT response; for DML-only batches show a combined status
-      const lastWithRows = [...responses].reverse().find(r => r.rows !== undefined);
-      const lastResponse = lastWithRows || responses[responses.length - 1];
       setResponse(lastResponse);
       setQueryCount(prev => prev + 1);
       fetchCatalog();
@@ -88,14 +83,6 @@ export default function App() {
       setResponse({ status: 'error', message: e.response?.data?.detail || e.message });
     }
     setLoading(false);
-  };
-
-  // Keyboard shortcut: Ctrl+Enter to run query
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      if (!loading) handleRun();
-    }
   };
 
   const toggleSidebar = (name: string) => {
@@ -206,32 +193,7 @@ export default function App() {
           {QUICK_QUERIES.map((q, i) => (
             <button
               key={i}
-              onClick={() => {
-                setQuery(q.sql);
-                setMainTab('query');
-                // Auto-run after a short delay so state updates first
-                setTimeout(() => {
-                  setLoading(true);
-                  setResponse(null);
-                  const statements = q.sql.split(';').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
-                  const responses: any[] = [];
-                  (async () => {
-                    try {
-                      for (const stmt of statements) {
-                        const res = (await axios.post('/query', { query: stmt + ';' })).data;
-                        responses.push(res);
-                      }
-                      const lastWithRows = [...responses].reverse().find(r => r.rows !== undefined);
-                      setResponse(lastWithRows || responses[responses.length - 1]);
-                      setQueryCount(prev => prev + 1);
-                      fetchCatalog();
-                    } catch (e: any) {
-                      setResponse({ status: 'error', message: (e as any).response?.data?.detail || (e as any).message });
-                    }
-                    setLoading(false);
-                  })();
-                }, 50);
-              }}
+              onClick={() => { setQuery(q.sql); setMainTab('query'); }}
               style={{
                 width: '100%', background: 'transparent', border: `0.5px solid ${C.border}`,
                 color: C.text2, padding: '7px 10px', borderRadius: '5px', fontSize: '11px',
@@ -241,7 +203,7 @@ export default function App() {
               onMouseOver={e => { (e.currentTarget).style.borderColor = C.indigo; (e.currentTarget).style.color = C.text1; }}
               onMouseOut={e => { (e.currentTarget).style.borderColor = C.border; (e.currentTarget).style.color = C.text2; }}
             >
-              ▶ {q.label}
+              {q.label}
             </button>
           ))}
         </div>
@@ -253,7 +215,6 @@ export default function App() {
         {/* ── TOP BAR ── */}
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: `0.5px solid ${C.border}`, background: C.sidebar }}>
           <TabBtn id="query" label="Query Editor" icon="⌨" />
-          <TabBtn id="pipeline" label="Pipeline Debugger" icon="🔬" />
           <TabBtn id="storage" label="Storage Monitor" icon="💾" />
           <TabBtn id="catalog" label="Catalog" icon="📋" />
           <TabBtn id="architecture" label="Architecture" icon="🏗" />
@@ -274,9 +235,9 @@ export default function App() {
                 {totalTime}ms
               </span>
             )}
-            {response?.rows !== undefined && Array.isArray(response.rows) && (
+            {response?.rows && (
               <span style={{ fontSize: '10px', background: 'rgba(20,184,166,0.15)', color: C.teal, padding: '3px 10px', borderRadius: '999px', fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
-                {response.rows.length} row{response.rows.length !== 1 ? 's' : ''}
+                {response.rows.length} rows
               </span>
             )}
           </div>
@@ -309,8 +270,7 @@ export default function App() {
                 <textarea
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="-- Write SQL here... (Ctrl+Enter to run)"
+                  placeholder="-- Write SQL here..."
                   spellCheck={false}
                   style={{
                     width: '100%', height: '100%', padding: '20px', paddingRight: '150px',
@@ -353,20 +313,10 @@ export default function App() {
                       {/* ── RESULTS TAB ── */}
                       {resultTab === 'results' && (
                         <div style={{ animation: 'fadeIn 0.2s ease' }}>
-                          {/* DML / DDL success message */}
-                          {response.message && !Array.isArray(response.rows) && (
-                            <div style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '20px' }}>✓</span>
-                              <div>
-                                <div style={{ color: C.green, fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: 600 }}>{response.message}</div>
-                                {response.deleted !== undefined && <div style={{ color: C.text3, fontSize: '11px', marginTop: '4px' }}>{response.deleted} row(s) deleted</div>}
-                                {response.updated !== undefined && <div style={{ color: C.text3, fontSize: '11px', marginTop: '4px' }}>{response.updated} row(s) updated</div>}
-                                {response.inserted !== undefined && <div style={{ color: C.text3, fontSize: '11px', marginTop: '4px' }}>{response.inserted} row(s) inserted</div>}
-                              </div>
-                            </div>
+                          {response.message && !response.rows && (
+                            <div style={{ padding: '20px', color: C.green, fontFamily: "'JetBrains Mono', monospace", fontSize: '13px' }}>✓ {response.message}</div>
                           )}
-                          {/* SELECT results table */}
-                          {Array.isArray(response.rows) && response.rows.length > 0 && (
+                          {response.rows && response.rows.length > 0 && (
                             <table style={{ width: '100%', textAlign: 'left', fontSize: '12px', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr>
@@ -400,11 +350,8 @@ export default function App() {
                               </tbody>
                             </table>
                           )}
-                          {Array.isArray(response.rows) && response.rows.length === 0 && (
-                            <div style={{ padding: '30px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontSize: '28px' }}>📭</span>
-                              <div style={{ color: C.text3, fontFamily: "'JetBrains Mono', monospace", fontSize: '13px' }}>Empty set (0 rows)</div>
-                            </div>
+                          {response.rows && response.rows.length === 0 && (
+                            <div style={{ padding: '20px', color: C.text3, fontFamily: "'JetBrains Mono', monospace", fontSize: '13px' }}>Empty set (0 rows)</div>
                           )}
                         </div>
                       )}
@@ -488,14 +435,11 @@ export default function App() {
             </div>
           )}
 
-          {/* ════════ PIPELINE DEBUGGER TAB ════════ */}
-          {mainTab === 'pipeline' && <PipelineDebugger />}
-
           {/* ════════ STORAGE MONITOR TAB ════════ */}
           {mainTab === 'storage' && <StorageMonitor queryCount={queryCount} />}
 
           {/* ════════ CATALOG TAB ════════ */}
-          {mainTab === 'catalog' && <CatalogView key={queryCount} />}
+          {mainTab === 'catalog' && <CatalogView />}
 
           {/* ════════ ARCHITECTURE TAB ════════ */}
           {mainTab === 'architecture' && <ArchitectureView />}
