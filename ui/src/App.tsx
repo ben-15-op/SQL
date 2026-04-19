@@ -34,6 +34,8 @@ const QUICK_QUERIES = [
   { label: 'Delete Row', sql: "DELETE FROM Orders WHERE id = 102;" },
   { label: 'Truncate Table', sql: "TRUNCATE TABLE Orders;" },
   { label: 'Drop Tables', sql: "DROP TABLE Orders;\nDROP TABLE Customers;" },
+  { label: 'Rishi Insert', sql: "INSERT INTO Customers VALUES (99, 'Rishi');" },
+  { label: 'Rishi Select', sql: "SELECT * FROM Customers WHERE name = 'Rishi';" },
 ];
 
 type MainTab = 'query' | 'storage' | 'catalog' | 'architecture';
