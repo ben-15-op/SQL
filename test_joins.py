@@ -45,7 +45,7 @@ logical_builder = LogicalPlanBuilder()
 optimizer = LogicalOptimizer(catalog)
 disk_manager = DiskManager(DB_FILE)
 buffer_pool = BufferPoolManager(disk_manager, pool_size=10)
-physical_builder = PhysicalPlanBuilder(catalog, buffer_pool)
+physical_builder = PhysicalPlanBuilder(catalog, analyzer)
 
 def test(sql: str):
     """Refined execution pipeline for testing SQL queries"""

@@ -31,7 +31,7 @@ catalog = Catalog()
 analyzer = SemanticAnalyzer(catalog)
 logical_builder = LogicalPlanBuilder()
 optimizer = LogicalOptimizer(catalog)
-physical_builder = PhysicalPlanBuilder(catalog)
+physical_builder = PhysicalPlanBuilder(catalog, analyzer)
 
 class QueryRequest(BaseModel):
     query: str
