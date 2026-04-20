@@ -19,7 +19,7 @@ class FilterExec(Executor):
                 return tup
 
     def _resolve(self, col, row):
-        print("DEBUG RESOLVE TYPE:", type(col), col)
+        #print("DEBUG RESOLVE TYPE:", type(col), col)
         if col is None:
             return None
 
@@ -61,7 +61,7 @@ class FilterExec(Executor):
                 return val
 
     def _eval_node(self, node, tup):
-        print("ENTERING EVAL NODE")
+        #print("ENTERING EVAL NODE")
         if node is None:
             return True
 
