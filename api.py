@@ -14,7 +14,7 @@ from logical.builder import LogicalPlanBuilder
 from logical.optimizer import LogicalOptimizer
 from execution.builder_exec import PhysicalPlanBuilder
 from storage.catalog import Catalog
-from utils.relational_algebra import predicate_to_string, dml_ddl_to_ra
+from utils.relational_algebra import predicate_to_string, plan_to_ra_string
 
 app = FastAPI(title="MiniSQL API")
 
@@ -126,7 +126,7 @@ def execute_query(req: QueryRequest):
         logical_plan = logical_builder.build(ast)
         timings["logical_ms"] = round((time.perf_counter() - t0) * 1000, 2)
 
-        ra_string = dml_ddl_to_ra(logical_plan)
+        ra_string = plan_to_ra_string(logical_plan)
         
         # Optimization
         t0 = time.perf_counter()
@@ -134,7 +134,7 @@ def execute_query(req: QueryRequest):
         timings["optimize_ms"] = round((time.perf_counter() - t0) * 1000, 2)
         
         # Optimized RA string for comparison
-        ra_optimized = dml_ddl_to_ra(optimized_plan)
+        ra_optimized = plan_to_ra_string(optimized_plan)
         
         # Serialize Plan for UI
         plan_tree = serialize_plan(optimized_plan)

@@ -82,78 +82,106 @@ def to_relational_algebra(plan, indent="", is_last=True):
 
     node_type = plan.__class__.__name__
 
-    # -------------------------
-    # SCAN
-    # -------------------------
     if node_type == "LogicalScan":
         print(prefix + plan.table)
-
-    # -------------------------
-    # WHERE -> σ
-    # -------------------------
     elif node_type == "LogicalFilter":
         predicate = predicate_to_string(plan.predicate)
         print(prefix + f"σ({predicate})")
         to_relational_algebra(plan.child, next_indent, True)
-
-    # -------------------------
-    # PROJECT -> π
-    # -------------------------
     elif node_type == "LogicalProject":
         cols = ", ".join(plan.columns)
         print(prefix + f"π({cols})")
         to_relational_algebra(plan.child, next_indent, True)
-
-    # -------------------------
-    # JOIN -> ⨝
-    # -------------------------
     elif node_type == "LogicalJoin":
         condition = predicate_to_string(plan.condition)
         print(prefix + f"⨝({condition})")
-
-        # left and right children
         to_relational_algebra(plan.left_child, next_indent, False)
         to_relational_algebra(plan.right_child, next_indent, True)
-
-    # -------------------------
-    # GROUP BY -> γ
-    # -------------------------
     elif node_type == "LogicalGroupBy":
         group_cols = ", ".join(plan.group_cols)
-
-        # aggregates (if present)
         if hasattr(plan, "aggregates") and plan.aggregates:
             aggs = ", ".join(plan.aggregates)
             print(prefix + f"γ({group_cols}; {aggs})")
         else:
             print(prefix + f"γ({group_cols})")
-
         to_relational_algebra(plan.child, next_indent, True)
-
-    # -------------------------
-    # HAVING -> σ after γ
-    # -------------------------
     elif node_type == "LogicalHaving":
         predicate = predicate_to_string(plan.predicate)
         print(prefix + f"σ({predicate})")
         to_relational_algebra(plan.child, next_indent, True)
-
-    # -------------------------
-    # ORDER BY -> τ
-    # -------------------------
     elif node_type == "LogicalOrderBy":
         print(prefix + f"τ({plan.column} {plan.order_type})")
         to_relational_algebra(plan.child, next_indent, True)
-
-    # -------------------------
-    # LIMIT
-    # -------------------------
     elif node_type == "LogicalLimit":
         print(prefix + f"LIMIT({plan.limit})")
         to_relational_algebra(plan.child, next_indent, True)
-
-    # -------------------------
-    # FALLBACK
-    # -------------------------
     else:
         print(prefix + f"[Unsupported: {node_type}]")
+
+
+def _select_ra_lines(plan, lines, indent="", is_last=True):
+    """Recursively build RA expression lines as strings for SELECT plans."""
+    prefix = indent + ("└── " if is_last else "├── ")
+    next_indent = indent + ("    " if is_last else "│   ")
+    node_type = plan.__class__.__name__
+
+    if node_type == "LogicalScan":
+        lines.append(prefix + plan.table)
+
+    elif node_type == "LogicalFilter":
+        predicate = predicate_to_string(plan.predicate)
+        lines.append(prefix + f"σ({predicate})")
+        _select_ra_lines(plan.child, lines, next_indent, True)
+
+    elif node_type == "LogicalProject":
+        cols = ", ".join(plan.columns)
+        lines.append(prefix + f"π({cols})")
+        _select_ra_lines(plan.child, lines, next_indent, True)
+
+    elif node_type == "LogicalJoin":
+        condition = predicate_to_string(plan.condition)
+        lines.append(prefix + f"⨝({condition})")
+        _select_ra_lines(plan.left_child, lines, next_indent, False)
+        _select_ra_lines(plan.right_child, lines, next_indent, True)
+
+    elif node_type == "LogicalGroupBy":
+        group_cols = ", ".join(plan.group_cols)
+        if hasattr(plan, "aggregates") and plan.aggregates:
+            aggs = ", ".join(plan.aggregates)
+            lines.append(prefix + f"γ({group_cols}; {aggs})")
+        else:
+            lines.append(prefix + f"γ({group_cols})")
+        _select_ra_lines(plan.child, lines, next_indent, True)
+
+    elif node_type == "LogicalHaving":
+        predicate = predicate_to_string(plan.predicate)
+        lines.append(prefix + f"σ({predicate})")
+        _select_ra_lines(plan.child, lines, next_indent, True)
+
+    elif node_type == "LogicalOrderBy":
+        lines.append(prefix + f"τ({plan.column} {plan.order_type})")
+        _select_ra_lines(plan.child, lines, next_indent, True)
+
+    elif node_type == "LogicalLimit":
+        lines.append(prefix + f"LIMIT({plan.limit})")
+        _select_ra_lines(plan.child, lines, next_indent, True)
+
+    else:
+        lines.append(prefix + f"[{node_type}]")
+
+
+def select_to_ra_string(plan) -> str:
+    """Return the relational algebra tree for a SELECT plan as a string."""
+    lines = []
+    _select_ra_lines(plan, lines)
+    return "\n".join(lines)
+
+
+def plan_to_ra_string(plan) -> str:
+    """Single entry point: returns RA string for any plan (SELECT or DML/DDL)."""
+    # Try DML/DDL first
+    result = dml_ddl_to_ra(plan)
+    if result is not None:
+        return result
+    # Fall back to SELECT tree rendering
+    return select_to_ra_string(plan)

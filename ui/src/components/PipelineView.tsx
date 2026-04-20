@@ -1,17 +1,12 @@
 import { useState } from 'react';
-
-const C = {
-  base: '#09090b', surface: '#0f0f12', elevated: '#141418',
-  border: '#1c1c22', hi: '#f4f4f5', mid: '#71717a', lo: '#3f3f46',
-  accent: '#00d4aa', accentDim: 'rgba(0,212,170,0.08)',
-  val: '#a1a1aa', red: '#f87171',
-};
+import { useTheme } from '../theme';
 
 function tokenize(sql: string): string[] {
   return sql.match(/[a-zA-Z_]\w*|'[^']*'|\d+|[><=!]+|[*.,;()]/g) || sql.split(/\s+/).filter(Boolean);
 }
 
 function TreeNode({ node, depth = 0, mapFn }: { node: any; depth?: number; mapFn?: (l: string) => string }) {
+  const { C } = useTheme();
   if (!node || !node.label) return null;
   const kids = node.children || [];
   const label = mapFn ? mapFn(node.label) : node.label;
@@ -55,6 +50,7 @@ interface StageProps {
 }
 
 function Stage({ num, name, timeMs, open, onToggle, children }: StageProps) {
+  const { C } = useTheme();
   return (
     <div>
       <div
@@ -89,6 +85,7 @@ function Stage({ num, name, timeMs, open, onToggle, children }: StageProps) {
 }
 
 function Connector() {
+  const { C } = useTheme();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2px 0' }}>
       <div style={{ width: '1px', height: '16px', background: C.border }} />
@@ -98,6 +95,7 @@ function Connector() {
 }
 
 export function PipelineView({ response, query }: { response: any; query: string }) {
+  const { C } = useTheme();
   const [open, setOpen] = useState<Record<number, boolean>>({});
   const toggle = (n: number) => setOpen(p => ({ ...p, [n]: !p[n] }));
 

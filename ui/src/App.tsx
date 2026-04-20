@@ -5,21 +5,7 @@ import { StorageMonitor } from './components/StorageMonitor';
 import { CatalogView } from './components/CatalogView';
 import { ArchitectureView } from './components/ArchitectureView';
 import { PipelineView } from './components/PipelineView';
-
-const C = {
-  base: '#09090b',
-  surface: '#0f0f12',
-  elevated: '#141418',
-  border: '#1c1c22',
-  hi: '#f4f4f5',
-  mid: '#71717a',
-  lo: '#3f3f46',
-  accent: '#00d4aa',
-  accentDim: 'rgba(0,212,170,0.08)',
-  red: '#f87171',
-  green: '#4ade80',
-  val: '#a1a1aa',
-};
+import { useTheme } from './theme';
 
 const QUICK_QUERIES = [
   { label: 'Create Schema', sql: "CREATE TABLE Orders (id INT, customer_id INT);\nCREATE TABLE Customers (id INT, name TEXT);" },
@@ -41,6 +27,7 @@ type MainTab = 'query' | 'storage' | 'catalog' | 'architecture';
 type ResultTab = 'results' | 'plan' | 'algebra' | 'timings' | 'pipeline';
 
 export default function App() {
+  const { C, isDark, toggle } = useTheme();
   const [mainTab, setMainTab] = useState<MainTab>('query');
   const [resultTab, setResultTab] = useState<ResultTab>('results');
   const [query, setQuery] = useState("SELECT * FROM Orders;");
@@ -215,6 +202,23 @@ export default function App() {
           ))}
 
           <div style={{ marginLeft: 'auto', paddingRight: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={toggle}
+              style={{
+                background: C.elevated, border: `0.5px solid ${C.border}`, borderRadius: '4px',
+                padding: '4px 10px', fontSize: '11px', cursor: 'pointer',
+                color: C.hi, marginRight: '8px', display: 'flex', alignItems: 'center', gap: '6px',
+                fontFamily: "'Geist', sans-serif", fontWeight: 500, transition: 'all 0.15s'
+              }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.hi; }}
+            >
+              {isDark ? (
+                <><span style={{ fontSize: '14px' }}>☀️</span> Light</>
+              ) : (
+                <><span style={{ fontSize: '14px' }}>🌙</span> Dark</>
+              )}
+            </button>
             <div style={{
               width: '6px', height: '6px', borderRadius: '50%',
               background: apiReady ? C.green : C.red,

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { ReactFlow, Background, Controls } from '@xyflow/react';
+import { useTheme } from '../theme';
 import '@xyflow/react/dist/style.css';
 
 interface PlanNode {
@@ -26,6 +27,7 @@ const operatorColor: Record<string, string> = {
 };
 
 export function QueryGraph({ plan }: { plan: PlanNode | null }) {
+  const { C, isDark } = useTheme();
   const { nodes, edges } = useMemo(() => {
     if (!plan || !plan.id) return { nodes: [], edges: [] };
 
@@ -47,9 +49,9 @@ export function QueryGraph({ plan }: { plan: PlanNode | null }) {
           position: pos,
           data: { label: node.label },
           style: {
-            background: '#0b0d11',
+            background: C.surface,
             color: color,
-            border: `0.5px solid ${color}`,
+            border: `1px solid ${color}`,
             borderRadius: '8px',
             padding: '12px 18px',
             textAlign: 'center' as const,
@@ -72,9 +74,9 @@ export function QueryGraph({ plan }: { plan: PlanNode | null }) {
         position: pos,
         data: { label: node.label },
         style: {
-          background: '#0b0d11',
+          background: C.surface,
           color: color,
-          border: `0.5px solid ${color}`,
+          border: `1px solid ${color}`,
           borderRadius: '8px',
           padding: '12px 18px',
           textAlign: 'center' as const,
@@ -92,7 +94,7 @@ export function QueryGraph({ plan }: { plan: PlanNode | null }) {
           source: node.id,
           target: child.id,
           animated: true,
-          style: { stroke: '#334155', strokeWidth: 1.5 },
+          style: { stroke: C.mid, strokeWidth: 1.5 },
           type: 'smoothstep',
         });
       });
@@ -102,20 +104,20 @@ export function QueryGraph({ plan }: { plan: PlanNode | null }) {
 
     traverse(plan, 0);
     return { nodes: generatedNodes, edges: generatedEdges };
-  }, [plan]);
+  }, [plan, C, isDark]);
 
   if (!plan || !plan.id) {
     return (
-      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', background: '#090b0e', fontSize: '13px' }}>
+      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.lo, background: C.base, fontSize: '13px' }}>
         Run a SELECT / JOIN query to see the plan tree
       </div>
     );
   }
 
   return (
-    <div style={{ height: '100%', width: '100%', background: '#090b0e' }}>
-      <ReactFlow nodes={nodes} edges={edges} fitView>
-        <Background gap={20} size={1} color="#161920" />
+    <div style={{ height: '100%', width: '100%', background: C.base }}>
+      <ReactFlow nodes={nodes} edges={edges} fitView colorMode={isDark ? "dark" : "light"}>
+        <Background gap={20} size={1} color={C.border} />
         <Controls />
       </ReactFlow>
     </div>

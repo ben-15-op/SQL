@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const C = {
-  base: '#09090b', surface: '#0f0f12', elevated: '#141418',
-  border: '#1c1c22', hi: '#f4f4f5', mid: '#71717a', lo: '#3f3f46',
-  accent: '#00d4aa', accentDim: 'rgba(0,212,170,0.08)',
-  red: '#f87171', green: '#4ade80', val: '#a1a1aa',
-};
+import { useTheme } from '../theme';
 
 interface CatalogTable {
   name: string;
@@ -20,6 +15,7 @@ interface StorageMonitorProps {
 }
 
 export function StorageMonitor({ queryCount }: StorageMonitorProps) {
+  const { C } = useTheme();
   const [tables, setTables] = useState<CatalogTable[]>([]);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [tableRows, setTableRows] = useState<Record<string, unknown>[]>([]);

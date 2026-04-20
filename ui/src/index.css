@@ -12,8 +12,8 @@ html, body, #root {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: #09090b;
-  color: #f4f4f5;
+  background-color: var(--theme-base);
+  color: var(--theme-hi);
   font-family: 'Geist', sans-serif;
 }
 
@@ -50,27 +50,27 @@ html, body, #root {
 }
 
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: var(--theme-base);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1c1c22;
+  background: var(--theme-border);
   border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #27272a;
+  background: var(--theme-lo);
 }
 
 /* ─── SELECTION ─── */
 ::selection {
-  background: rgba(0, 212, 170, 0.2);
-  color: #f4f4f5;
+  background: var(--theme-accentDim);
+  color: var(--theme-hi);
 }
 
 /* ─── TEXTAREA PLACEHOLDER ─── */
 textarea::placeholder {
-  color: #3f3f46;
+  color: var(--theme-lo);
   font-family: 'Geist Mono', monospace;
 }
 
@@ -85,13 +85,13 @@ th {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #3f3f46;
+  color: var(--theme-mid);
 }
 
 td {
   font-family: 'Geist Mono', monospace;
   font-size: 12px;
-  color: #a1a1aa;
+  color: var(--theme-hi);
 }
 
 /* ─── BUTTON RESET ─── */

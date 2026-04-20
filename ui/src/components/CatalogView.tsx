@@ -1,14 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const C = {
-  base: '#09090b', surface: '#0f0f12', elevated: '#141418',
-  border: '#1c1c22', hi: '#f4f4f5', mid: '#71717a', lo: '#3f3f46',
-  accent: '#00d4aa', accentDim: 'rgba(0,212,170,0.08)',
-  red: '#f87171', val: '#a1a1aa',
-};
+import { useTheme } from '../theme';
 
 export function CatalogView() {
+  const { C } = useTheme();
   const [catalog, setCatalog] = useState<{ tables: any[] }>({ tables: [] });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
