@@ -35,13 +35,13 @@ def pretty_output(rows):
         print("(no rows)")
         return
 
-    # CASE 1: SELECT → multiple columns
+    # CASE 1: SELECT -> multiple columns
     if len(rows[0]) > 1:
         columns = list(rows[0].keys())
         formatted_rows = [[row[col] for col in columns] for row in rows]
         print_table(columns, formatted_rows)
 
-    # CASE 2: DML/DDL → single key (inserted, updated, deleted, etc.)
+    # CASE 2: DML/DDL -> single key (inserted, updated, deleted, etc.)
     else:
         key = list(rows[0].keys())[0]
         value = rows[0][key]

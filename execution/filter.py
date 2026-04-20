@@ -30,7 +30,7 @@ class FilterExec(Executor):
         if col in row:
             return row[col]
 
-        # 2. Handle alias.column → column
+        # 2. Handle alias.column -> column
         short = col.split('.')[-1]
 
         if short in row:
@@ -61,47 +61,59 @@ class FilterExec(Executor):
                 return val
 
     def _eval_node(self, node, tup):
-        #print("ENTERING EVAL NODE")
         if node is None:
             return True
 
-        #op = getattr(node, 'op', None)
-        if not isinstance(node, Where):
+        # Handle Literal values directly
+        from parser.ast import Literal, BinaryOp
+        if isinstance(node, Literal):
+            return node.value
+
+        # Duck-type: any node with .op, .left, .right (Where or BinaryOp)
+        if not hasattr(node, 'op'):
+            # Plain string/int — treat as literal
             return node
 
         op = node.op
-        # 1. Handle Logical Operators (AND, OR, NOT)
+        left = node.left
+        right = node.right
+
+        # 1. Logical Operators
         if op == "AND":
-            return self._eval_node(node.left, tup) and self._eval_node(node.right, tup)
-
+            return self._eval_node(left, tup) and self._eval_node(right, tup)
         if op == "OR":
-            return self._eval_node(node.left, tup) or self._eval_node(node.right, tup)
-
+            return self._eval_node(left, tup) or self._eval_node(right, tup)
         if op == "NOT":
-            # NOT usually wraps the condition in 'left'
-            target = node.left if node.left is not None else node.right
+            target = left if left is not None else right
             return not self._eval_node(target, tup)
 
-        # 2. Handle Comparisons (Basic Predicates)
-        # We check if 'op' is a comparison operator
-        if op in ('=', '==', '>', '<', '!=', '<>', '>=', '<='):
-            left_val = self._eval_node(node.left, tup) if isinstance(node.left, Where) else self._resolve(node.left, tup)
+        # 2. Comparison Operators
+        if op in ('=', '==', '>', '<', '!=', '<>', '>=', '<=', 'LIKE', 'IS NULL'):
+            # Resolve left side
+            if hasattr(left, 'op') or isinstance(left, Literal):
+                left_val = self._eval_node(left, tup)
+            else:
+                left_val = self._resolve(left, tup)
+                if left_val is None:
+                    left_val = left  # fallback to literal
 
-            if left_val is None and not isinstance(node.left, Where):
-                left_val = node.left # Fallback to literal if not a column
+            # Resolve right side
+            if hasattr(right, 'op') or isinstance(right, Literal):
+                right_val = self._eval_node(right, tup)
+            else:
+                right_val = self._resolve(right, tup)
+                if right_val is None:
+                    right_val = right  # fallback to literal
 
-            # Resolve Right side
-            right_val = self._eval_node(node.right, tup) if isinstance(node.right, Where) else self._resolve(node.right, tup)
-            if right_val is None and not isinstance(node.right, Where):
-                right_val = node.right
-
-            # Normalize both sides (handle types like '1' vs 1)
+            # Normalize types
             left_val = self._normalize(left_val)
             right_val = self._normalize(right_val)
 
+            if op == 'IS NULL':
+                return left_val is None
             if left_val is None or right_val is None:
                 return False
-            # Perform comparison
+
             if op in ('=', '=='):
                 return left_val == right_val
             elif op == '>':
@@ -114,8 +126,11 @@ class FilterExec(Executor):
                 return left_val >= right_val
             elif op == '<=':
                 return left_val <= right_val
+            elif op == 'LIKE':
+                import re
+                pattern = str(right_val).replace('%', '.*').replace('_', '.')
+                return bool(re.fullmatch(pattern, str(left_val), re.IGNORECASE))
 
-        # Fallback for unexpected node structures
         return False
     """def _eval_node(self, node, tup):
             if node is None:

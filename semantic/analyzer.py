@@ -89,8 +89,8 @@ class SemanticAnalyzer:
                     f"Referential integrity violation: {fk_col}={value} "
                     f"does not exist in {ref_table_name}.{ref_col}"
                 )
-        print("DEBUG → inserting row:", row)
-        print("DEBUG → table rows:", table.rows)
+        print("DEBUG -> inserting row:", row)
+        print("DEBUG -> table rows:", table.rows)
         #table.rows.append(row)
         pass
 

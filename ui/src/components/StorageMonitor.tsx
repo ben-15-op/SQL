@@ -1,235 +1,252 @@
 import { useState, useEffect } from 'react';
 
-const COLORS = {
-  indigo: '#534AB7',
-  teal: '#14b8a6',
-  amber: '#f59e0b',
-  coral: '#f87171',
-  green: '#22c55e',
-  gray: '#1e293b',
-  bg: '#0b0d11',
-  card: '#12141a',
-  border: '#1e293b',
-  textPrimary: '#e2e8f0',
-  textSecondary: '#64748b',
+const C = {
+  base: '#09090b', surface: '#0f0f12', elevated: '#141418',
+  border: '#1c1c22', hi: '#f4f4f5', mid: '#71717a', lo: '#3f3f46',
+  accent: '#00d4aa', accentDim: 'rgba(0,212,170,0.08)',
+  red: '#f87171', green: '#4ade80', val: '#a1a1aa',
 };
 
-type FrameState = 'empty' | 'clean' | 'pinned' | 'dirty' | 'evicting';
-
-const stateColors: Record<FrameState, string> = {
-  empty: COLORS.gray,
-  clean: COLORS.green,
-  pinned: COLORS.indigo,
-  dirty: COLORS.amber,
-  evicting: COLORS.coral,
-};
-
-const stateLabels: Record<FrameState, string> = {
-  empty: 'Empty',
-  clean: 'Clean',
-  pinned: 'Pinned',
-  dirty: 'Dirty',
-  evicting: 'Evicting',
-};
+interface CatalogTable {
+  name: string;
+  columns: { name: string; type: string }[];
+  rows: number;
+  primary_key: string | null;
+  unique_keys: string[];
+}
 
 interface StorageMonitorProps {
   queryCount: number;
 }
 
 export function StorageMonitor({ queryCount }: StorageMonitorProps) {
-  const [frames, setFrames] = useState<{ state: FrameState; pageId: number | null; table: string }[]>(
-    Array.from({ length: 16 }, () => ({ state: 'empty' as FrameState, pageId: null, table: '' }))
-  );
-  const [metrics, setMetrics] = useState({ reads: 0, writes: 0, hitRate: 0, evictions: 0 });
-  const [animatingFrame, setAnimatingFrame] = useState<number | null>(null);
+  const [tables, setTables] = useState<CatalogTable[]>([]);
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [tableRows, setTableRows] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // When a query runs, simulate warming some frames
-  useEffect(() => {
-    if (queryCount === 0) return;
-    const tables = ['Customers', 'Orders', 'Students'];
-    const newFrames = [...frames];
-    const states: FrameState[] = ['clean', 'pinned', 'dirty'];
-
-    // Warm 2-4 random frames
-    const count = 2 + Math.floor(Math.random() * 3);
-    for (let i = 0; i < count; i++) {
-      const idx = Math.floor(Math.random() * 16);
-      const table = tables[Math.floor(Math.random() * tables.length)];
-      newFrames[idx] = {
-        state: states[Math.floor(Math.random() * states.length)],
-        pageId: Math.floor(Math.random() * 8),
-        table,
-      };
-      setAnimatingFrame(idx);
-      setTimeout(() => setAnimatingFrame(null), 600);
+  // Fetch real catalog data
+  const fetchCatalog = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:8000/catalog');
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data = await res.json();
+      setTables(data.tables || []);
+      setError(null);
+      // Auto-select first table if none selected
+      if (!selectedTable && data.tables?.length > 0) {
+        setSelectedTable(data.tables[0].name);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load catalog');
+    } finally {
+      setLoading(false);
     }
-
-    setFrames(newFrames);
-    setMetrics(prev => ({
-      reads: prev.reads + count,
-      writes: prev.writes + Math.floor(Math.random() * 2),
-      hitRate: Math.min(99, 40 + queryCount * 8 + Math.floor(Math.random() * 10)),
-      evictions: prev.evictions + (queryCount > 3 ? 1 : 0),
-    }));
-  }, [queryCount]);
-
-  const simulateAccess = () => {
-    const newFrames = frames.map(() => {
-      const r = Math.random();
-      const states: FrameState[] = ['empty', 'clean', 'pinned', 'dirty', 'evicting'];
-      const tables = ['Customers', 'Orders', 'Students'];
-      return {
-        state: states[Math.floor(r * 5)],
-        pageId: Math.floor(Math.random() * 8),
-        table: tables[Math.floor(Math.random() * tables.length)],
-      };
-    });
-    setFrames(newFrames);
-    setMetrics(prev => ({
-      reads: prev.reads + 4,
-      writes: prev.writes + 2,
-      hitRate: Math.min(99, prev.hitRate + 5),
-      evictions: prev.evictions + 1,
-    }));
   };
 
-  // Simulated slotted page data
-  const slottedPage = [
-    { slot: 'HDR', offset: '0x00', length: '24B', data: 'page_id=0 | num_slots=4 | free_ptr=2048' },
-    { slot: 'SLOT[0]', offset: '0x18', length: '48B', data: '{id: 101, name: "Indu"}' },
-    { slot: 'SLOT[1]', offset: '0x48', length: '52B', data: '{id: 102, name: "Dhanya"}' },
-    { slot: 'SLOT[2]', offset: '0x7C', length: '52B', data: '{id: 103, name: "Jyothi"}' },
-    { slot: 'FREE', offset: '0xB0', length: '3920B', data: '— available —' },
-  ];
+  // Fetch rows for the selected table via a SELECT * query
+  const fetchTableRows = async (tableName: string) => {
+    try {
+      const res = await fetch('http://127.0.0.1:8000/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: `SELECT * FROM ${tableName};` }),
+      });
+      if (!res.ok) {
+        setTableRows([]);
+        return;
+      }
+      const data = await res.json();
+      setTableRows(data.rows || []);
+    } catch {
+      setTableRows([]);
+    }
+  };
 
-  // Disk I/O simulation
-  const diskIO = [
-    { table: 'Customers.tbl', reads: 65 },
-    { table: 'Orders.tbl', reads: 85 },
-    { table: 'Students.tbl', reads: 30 },
-  ];
+  useEffect(() => { fetchCatalog(); }, [queryCount]);
+
+  useEffect(() => {
+    if (selectedTable) fetchTableRows(selectedTable);
+  }, [selectedTable, queryCount]);
+
+  const selectedMeta = tables.find(t => t.name === selectedTable);
+  const totalRows = tables.reduce((sum, t) => sum + t.rows, 0);
+  const totalColumns = tables.reduce((sum, t) => sum + t.columns.length, 0);
+
+  // Clean up type display: "TokenType.INT" -> "INT"
+  const cleanType = (t: string) => t.replace('TokenType.', '');
+
+  if (loading) {
+    return (
+      <div style={{ padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <div style={{ color: C.mid, fontFamily: "'Geist Mono', monospace", fontSize: '12px' }}>Loading catalog…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <div style={{ color: C.red, fontFamily: "'Geist Mono', monospace", fontSize: '12px' }}>Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '24px', overflowY: 'auto', height: '100%', animation: 'fadeIn 0.3s ease' }}>
+    <div style={{ padding: '24px', overflowY: 'auto', height: '100%', animation: 'fadeIn 0.15s ease' }}>
 
-      {/* Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+      {/* Metric Cards — Real Data */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '20px' }}>
         {[
-          { label: 'Page Reads', value: metrics.reads, color: COLORS.teal },
-          { label: 'Page Writes', value: metrics.writes, color: COLORS.amber },
-          { label: 'Hit Rate', value: `${metrics.hitRate}%`, color: COLORS.indigo },
-          { label: 'Evictions', value: metrics.evictions, color: COLORS.coral },
+          { label: 'Tables', value: tables.length },
+          { label: 'Total Rows', value: totalRows },
+          { label: 'Total Columns', value: totalColumns },
+          { label: 'Queries Run', value: queryCount },
         ].map((m, i) => (
-          <div key={i} style={{ background: COLORS.card, border: `0.5px solid ${COLORS.border}`, borderRadius: '8px', padding: '16px' }}>
-            <div style={{ fontSize: '11px', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{m.label}</div>
-            <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: "'Syne', sans-serif", color: m.color }}>{m.value}</div>
+          <div key={i} style={{ background: C.elevated, border: `0.5px solid ${C.border}`, borderRadius: '3px', padding: '14px' }}>
+            <div style={{ fontSize: '10px', color: C.lo, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', fontFamily: "'Geist Mono', monospace" }}>{m.label}</div>
+            <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'Geist Mono', monospace", color: C.hi }}>{m.value}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
 
-        {/* Buffer Pool Grid */}
-        <div style={{ background: COLORS.card, border: `0.5px solid ${COLORS.border}`, borderRadius: '8px', padding: '20px' }}>
+        {/* Table List — from real catalog */}
+        <div style={{ background: C.elevated, border: `0.5px solid ${C.border}`, borderRadius: '3px', padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 600, fontSize: '14px', color: COLORS.textPrimary }}>Buffer Pool (16 Frames)</div>
+            <div style={{ fontFamily: "'Geist', sans-serif", fontWeight: 500, fontSize: '12px', color: C.hi }}>Tables in Catalog</div>
             <button
-              onClick={simulateAccess}
+              onClick={fetchCatalog}
               style={{
-                background: 'transparent', border: `0.5px solid ${COLORS.indigo}`, color: COLORS.indigo,
-                padding: '6px 14px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer',
-                fontFamily: "'Inter', sans-serif", fontWeight: 500, transition: 'all 0.15s',
+                background: 'transparent', border: `0.5px solid ${C.border}`, color: C.mid,
+                padding: '5px 12px', borderRadius: '2px', fontSize: '11px',
+                fontFamily: "'Geist', sans-serif", fontWeight: 500, transition: 'all 0.15s', cursor: 'pointer',
               }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.mid; }}
             >
-              Simulate Access
+              Refresh
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-            {frames.map((frame, i) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {tables.length === 0 && (
+              <div style={{ color: C.lo, fontSize: '11px', fontFamily: "'Geist Mono', monospace", padding: '12px', textAlign: 'center' }}>
+                No tables. Run a CREATE TABLE query first.
+              </div>
+            )}
+            {tables.map((t) => (
               <div
-                key={i}
+                key={t.name}
+                onClick={() => setSelectedTable(t.name)}
                 style={{
-                  background: '#0b0d11',
-                  border: `0.5px solid ${stateColors[frame.state]}`,
-                  borderRadius: '6px',
-                  padding: '10px 8px',
-                  textAlign: 'center',
-                  animation: animatingFrame === i ? 'warmFrame 0.6s ease' : undefined,
-                  transition: 'all 0.3s ease',
+                  background: selectedTable === t.name ? C.accentDim : C.base,
+                  border: `0.5px solid ${selectedTable === t.name ? C.accent : C.border}`,
+                  borderRadius: '2px', padding: '10px 12px', cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <div style={{ fontSize: '9px', color: stateColors[frame.state], fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  {stateLabels[frame.state]}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', fontFamily: "'Geist Mono', monospace", color: selectedTable === t.name ? C.accent : C.hi, fontWeight: 500 }}>
+                    {t.name}
+                  </span>
+                  <span style={{ fontSize: '10px', fontFamily: "'Geist Mono', monospace", color: C.lo }}>
+                    {t.rows} row{t.rows !== 1 ? 's' : ''} · {t.columns.length} col{t.columns.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
-                {frame.pageId !== null && frame.state !== 'empty' && (
-                  <>
-                    <div style={{ fontSize: '11px', color: COLORS.textPrimary, fontFamily: "'JetBrains Mono', monospace", marginTop: '4px' }}>P{frame.pageId}</div>
-                    <div style={{ fontSize: '9px', color: COLORS.textSecondary, marginTop: '2px' }}>{frame.table}</div>
-                  </>
+                {t.primary_key && (
+                  <div style={{ fontSize: '10px', color: C.mid, fontFamily: "'Geist Mono', monospace", marginTop: '3px' }}>
+                    PK: {t.primary_key}
+                  </div>
                 )}
-                {frame.state === 'empty' && (
-                  <div style={{ fontSize: '10px', color: '#334155', marginTop: '4px' }}>—</div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div style={{ display: 'flex', gap: '12px', marginTop: '14px', flexWrap: 'wrap' }}>
-            {(Object.keys(stateColors) as FrameState[]).map(s => (
-              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: COLORS.textSecondary }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: stateColors[s] }} />
-                {stateLabels[s]}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Disk I/O */}
-        <div style={{ background: COLORS.card, border: `0.5px solid ${COLORS.border}`, borderRadius: '8px', padding: '20px' }}>
-          <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 600, fontSize: '14px', color: COLORS.textPrimary, marginBottom: '16px' }}>Disk I/O Reads</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {diskIO.map((d, i) => (
-              <div key={i}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: COLORS.textSecondary, marginBottom: '6px' }}>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{d.table}</span>
-                  <span>{d.reads}%</span>
-                </div>
-                <div style={{ background: '#0b0d11', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
-                  <div style={{ width: `${d.reads}%`, height: '100%', background: COLORS.teal, borderRadius: '4px', transition: 'width 0.5s ease' }} />
-                </div>
-              </div>
-            ))}
+        {/* Schema View — Real column info */}
+        <div style={{ background: C.elevated, border: `0.5px solid ${C.border}`, borderRadius: '3px', padding: '20px' }}>
+          <div style={{ fontFamily: "'Geist', sans-serif", fontWeight: 500, fontSize: '12px', color: C.hi, marginBottom: '16px' }}>
+            {selectedMeta ? `Schema: ${selectedMeta.name}` : 'Select a Table'}
           </div>
+          {selectedMeta ? (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['Column', 'Type', 'Constraints'].map(h => (
+                    <th key={h} style={{ padding: '8px 14px', borderBottom: `0.5px solid ${C.border}`, textAlign: 'left', fontSize: '10px', color: C.lo, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: "'Geist Mono', monospace" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {selectedMeta.columns.map((col) => {
+                  const constraints: string[] = [];
+                  if (selectedMeta.primary_key === col.name) constraints.push('PRIMARY KEY');
+                  if (selectedMeta.unique_keys?.includes(col.name)) constraints.push('UNIQUE');
+                  return (
+                    <tr key={col.name} style={{ borderBottom: `0.5px solid ${C.border}` }}>
+                      <td style={{ padding: '8px 14px', fontFamily: "'Geist Mono', monospace", fontSize: '12px', color: C.hi, fontWeight: 500 }}>{col.name}</td>
+                      <td style={{ padding: '8px 14px', fontFamily: "'Geist Mono', monospace", fontSize: '12px', color: C.accent }}>{cleanType(col.type)}</td>
+                      <td style={{ padding: '8px 14px', fontFamily: "'Geist Mono', monospace", fontSize: '11px', color: constraints.length > 0 ? C.green : C.lo }}>
+                        {constraints.length > 0 ? constraints.join(', ') : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ color: C.lo, fontSize: '11px', fontFamily: "'Geist Mono', monospace", padding: '20px', textAlign: 'center' }}>
+              ← Click a table to view its schema
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Slotted Page Diagram */}
-      <div style={{ marginTop: '20px', background: COLORS.card, border: `0.5px solid ${COLORS.border}`, borderRadius: '8px', padding: '20px' }}>
-        <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 600, fontSize: '14px', color: COLORS.textPrimary, marginBottom: '16px' }}>
-          Slotted Page Layout — <span style={{ color: COLORS.teal, fontFamily: "'JetBrains Mono', monospace", fontSize: '12px' }}>Customers.tbl Page 0</span>
+      {/* Row Data — Slotted Page Layout visualization using REAL data */}
+      {selectedMeta && (
+        <div style={{ marginTop: '16px', background: C.elevated, border: `0.5px solid ${C.border}`, borderRadius: '3px', padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '16px' }}>
+            <span style={{ fontFamily: "'Geist', sans-serif", fontWeight: 500, fontSize: '12px', color: C.hi }}>Stored Records</span>
+            <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: '11px', color: C.lo }}>
+              {selectedMeta.name} — {tableRows.length} row{tableRows.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {tableRows.length === 0 ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: C.lo, fontFamily: "'Geist Mono', monospace", fontSize: '11px' }}>
+              No rows in this table. Run an INSERT query to add data.
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '8px 14px', borderBottom: `0.5px solid ${C.border}`, textAlign: 'left', fontSize: '10px', color: C.lo, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: "'Geist Mono', monospace", width: '60px' }}>Slot</th>
+                  {selectedMeta.columns.map(col => (
+                    <th key={col.name} style={{ padding: '8px 14px', borderBottom: `0.5px solid ${C.border}`, textAlign: 'left', fontSize: '10px', color: C.lo, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: "'Geist Mono', monospace" }}>{col.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tableRows.map((row, i) => (
+                  <tr key={i} style={{ borderBottom: `0.5px solid ${C.border}` }}>
+                    <td style={{ padding: '8px 14px', fontFamily: "'Geist Mono', monospace", fontSize: '12px', color: C.mid, fontWeight: 500 }}>
+                      [{i}]
+                    </td>
+                    {selectedMeta.columns.map(col => (
+                      <td key={col.name} style={{ padding: '8px 14px', fontFamily: "'Geist Mono', monospace", fontSize: '12px', color: C.val }}>
+                        {row[col.name] !== undefined ? String(row[col.name]) : '—'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-          <thead>
-            <tr>
-              {['Section', 'Offset', 'Length', 'Data'].map(h => (
-                <th key={h} style={{ padding: '10px 14px', borderBottom: `0.5px solid ${COLORS.border}`, textAlign: 'left', color: COLORS.textSecondary, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '10px' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {slottedPage.map((row, i) => (
-              <tr key={i} style={{ borderBottom: `0.5px solid ${COLORS.border}` }}>
-                <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", color: row.slot === 'HDR' ? COLORS.indigo : row.slot === 'FREE' ? COLORS.textSecondary : COLORS.teal, fontWeight: 600 }}>{row.slot}</td>
-                <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", color: COLORS.textSecondary }}>{row.offset}</td>
-                <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", color: COLORS.amber }}>{row.length}</td>
-                <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", color: row.slot === 'FREE' ? '#334155' : COLORS.textPrimary }}>{row.data}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      )}
     </div>
   );
 }

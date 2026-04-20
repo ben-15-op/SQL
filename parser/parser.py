@@ -42,12 +42,19 @@ class Parser:
         else:
             raise SyntaxError("Unknown statement")
 
-        # CRITICAL CHECK
+        # Optional trailing semicolon at top level
+        if self.current().type == TokenType.SEMICOLON:
+            self.eat(TokenType.SEMICOLON)
+
         if self.current().type != TokenType.EOF:
             raise SyntaxError(f"Unexpected token '{self.current().value}'")
 
         return stmt
 
+
+    def parse_expression(self):
+        return self.parse_or()
+    
     def parse_create(self):
         self.eat(TokenType.CREATE)
         self.eat(TokenType.TABLE)
@@ -118,15 +125,29 @@ class Parser:
                 self.eat(TokenType.IDENT)
                 col_type = self.current().type
                 self.eat(col_type)
+
+                # Support inline PRIMARY KEY / UNIQUE after type
+                if self.current().type == TokenType.PRIMARY:
+                    self.eat(TokenType.PRIMARY)
+                    self.eat(TokenType.KEY)
+                    primary_key = col_name
+                elif self.current().type == TokenType.UNIQUE:
+                    self.eat(TokenType.UNIQUE)
+                    unique_keys.append(col_name)
+
+                # Support NOT NULL (ignore constraint, just consume)
+                if self.current().type == TokenType.NOT:
+                    self.eat(TokenType.NOT)
+                    self.eat(TokenType.NULL)
+
                 columns.append((col_name, col_type))
 
             if self.current().type == TokenType.COMMA:
                 self.eat(TokenType.COMMA)
 
         self.eat(TokenType.RPAREN)
-        self.eat(TokenType.SEMICOLON)
-
-        return CreateTable(name, columns, foreign_keys,primary_key,unique_keys,if_not_exists)
+        # semicolon consumed by top-level parse()
+        return CreateTable(name, columns, foreign_keys, primary_key, unique_keys, if_not_exists)
     
     def parse_insert(self):
         self.eat(TokenType.INSERT)
@@ -146,8 +167,7 @@ class Parser:
                 self.eat(TokenType.COMMA)
 
         self.eat(TokenType.RPAREN)
-        self.eat(TokenType.SEMICOLON)
-
+        # semicolon consumed by top-level parse()
         return Insert(table, values)
 
     def parse_select(self):
@@ -208,13 +228,23 @@ class Parser:
         table = self.current().value
         self.eat(TokenType.IDENT)
         # CRITICAL FIX
-        if self.current().type == TokenType.IDENT:
-            raise SyntaxError(f"Unexpected token '{self.current().value}' after table name")
+        
         alias = None
         if self.current().type == TokenType.IDENT:
-            alias = self.current().value
-            self.eat(TokenType.IDENT)
+            
+            next_token = self.tokens[self.pos + 1] if self.pos + 1 < len(self.tokens) else None
+            if next_token and next_token.type  == TokenType.DOT:
+                pass
+            else:
+                alias = self.current().value
+                self.eat(TokenType.IDENT)
 
+        valid_next = {TokenType.INNER, TokenType.LEFT, TokenType.RIGHT, TokenType.FULL, TokenType.JOIN,
+        TokenType.WHERE, TokenType.GROUP, TokenType.ORDER, TokenType.LIMIT,
+        TokenType.SEMICOLON, TokenType.EOF}
+
+        if self.current().type not in valid_next:
+            raise SyntaxError(f"Unexpected token '{self.current().value}' after table")
         joins = []
         while self.current().type in (TokenType.INNER, TokenType.LEFT, TokenType.RIGHT, TokenType.FULL, TokenType.JOIN):
             join_type = "INNER"
@@ -274,9 +304,7 @@ class Parser:
             limit = self.current().value
             self.eat(TokenType.NUMBER)
 
-        if self.current().type != TokenType.SEMICOLON:
-            raise SyntaxError(f"Unexpected token '{self.current().value}' in SELECT")
-        self.eat(TokenType.SEMICOLON)
+        # semicolon consumed by top-level parse()
         return Select(columns, table, alias, where, group_by, having, order_by, order_type, limit, joins)
     
     def parse_where(self):
@@ -309,7 +337,7 @@ class Parser:
             condition = self.parse_not() 
             return Where(condition, "NOT", None)
 
-        return self._parse_primary()
+        return self.parse_comparison()
     
 
     def parse_identifier(self):
@@ -324,16 +352,38 @@ class Parser:
 
         return name
 
-    def _parse_primary(self):
-        # Handle Parentheses: (id = 1 OR id = 3)
-        if self.current().type == TokenType.LPAREN:
+    def parse_primary(self):
+        token = self.current()
+
+        # NUMBER
+        if token.type == TokenType.NUMBER:
+            val = int(token.value)
+            self.eat(TokenType.NUMBER)
+            return Literal(val)
+
+        # STRING
+        if token.type == TokenType.STRING:
+            val = token.value.strip("'")
+            self.eat(TokenType.STRING)
+            return Literal(val)
+
+        # IDENTIFIER (column)
+        if token.type == TokenType.IDENT:
+            return self.parse_identifier()
+
+        # Parenthesis
+        if token.type == TokenType.LPAREN:
             self.eat(TokenType.LPAREN)
-            node = self.parse_or()
+            expr = self.parse_expression()
             self.eat(TokenType.RPAREN)
-            return node
-        
-        # Otherwise, it's a standard comparison (id = 1)
-        return self.parse_comparison()
+            return expr
+
+        # NULL
+        if token.type == TokenType.NULL:
+            self.eat(TokenType.NULL)
+            return None
+
+        raise SyntaxError(f"Unexpected token {token}")
     
     """def parse_comparison(self):
         col = self.parse_identifier()
@@ -353,7 +403,7 @@ class Parser:
             raise SyntaxError("Invalid Comparision Value")
         print("LEFT:", col, "OP:", op, "RIGHT:", val)
         return Where(col, op, val)"""
-    def parse_comparison(self):
+    """def parse_comparison(self):
         # 1. Parse Left Side
         left = self.parse_identifier()
 
@@ -373,7 +423,48 @@ class Parser:
             self.eat(self.current().type)
 
         #print(f"DEBUG PARSER -> LEFT: {left} OP: {op} RIGHT: {right}")
-        return Where(left, op, right)
+        return Where(left, op, right)"""
+    def parse_comparison(self):
+        left = self.parse_term()
+
+        #  BETWEEN
+        if self.current().type == TokenType.BETWEEN:
+            self.eat(TokenType.BETWEEN)
+            low = self.parse_term()
+            self.eat(TokenType.AND)
+            high = self.parse_term()
+
+            return BinaryOp(
+                BinaryOp(left, ">=", low),
+                "AND",
+                BinaryOp(left, "<=", high)
+            )
+
+        # LIKE
+        if self.current().type == TokenType.LIKE:
+            self.eat(TokenType.LIKE)
+            pattern = self.current().value
+            self.eat(TokenType.STRING)
+            return BinaryOp(left, "LIKE", pattern)
+
+        # IS NULL
+        if self.current().type == TokenType.IS:
+            self.eat(TokenType.IS)
+            if self.current().type == TokenType.NULL:
+                self.eat(TokenType.NULL)
+                return BinaryOp(left, "IS NULL", None)
+
+        # NORMAL COMPARISON
+        if self.current().type in (
+            TokenType.EQ, TokenType.GT, TokenType.LT,
+            TokenType.GTE, TokenType.LTE, TokenType.NOT_EQ
+        ):
+            op = self.current().value
+            self.eat(self.current().type)
+            right = self.parse_term()
+            return BinaryOp(left, op, right)
+
+        return left
 
     def parse_having(self):
     # Support aggregate like COUNT(*)
@@ -424,8 +515,8 @@ class Parser:
 
         table = self.current().value
         self.eat(TokenType.IDENT)
-        self.eat(TokenType.SEMICOLON)
-        return DropTable(table,if_exists)
+        # semicolon consumed by top-level parse()
+        return DropTable(table, if_exists)
 
     def parse_delete(self):
         self.eat(TokenType.DELETE)
@@ -438,7 +529,7 @@ class Parser:
         if self.current().type == TokenType.WHERE:
             where = self.parse_where()
 
-        self.eat(TokenType.SEMICOLON)
+        # semicolon consumed by top-level parse()
         return Delete(table, where)
 
     def parse_update(self):
@@ -470,7 +561,7 @@ class Parser:
         if self.current().type == TokenType.WHERE:
             where = self.parse_where()
 
-        self.eat(TokenType.SEMICOLON)
+        # semicolon consumed by top-level parse()
         return Update(table, updates, where)
 
     def parse_alter(self):
@@ -512,7 +603,7 @@ class Parser:
         else:
             raise SyntaxError("Invalid ALTER")
 
-        self.eat(TokenType.SEMICOLON)
+        # semicolon consumed by top-level parse()
         return Alter(table, action, details)
 
     def parse_truncate(self):
@@ -522,13 +613,13 @@ class Parser:
         table = self.current().value
         self.eat(TokenType.IDENT)
 
-        self.eat(TokenType.SEMICOLON)
+        # semicolon consumed by top-level parse()
         return Truncate(table)
 
     def parse_show(self):
         self.eat(TokenType.SHOW)
         self.eat(TokenType.TABLES)
-        self.eat(TokenType.SEMICOLON)
+        # semicolon consumed by top-level parse()
         return ShowTables()
     
     def parse_desc(self):
@@ -538,5 +629,25 @@ class Parser:
         table = self.current().value
         self.eat(TokenType.IDENT)
 
-        self.eat(TokenType.SEMICOLON)
+        # semicolon consumed by top-level parse()
         return DescTable(table)
+    def parse_term(self):
+        node = self.parse_factor()
+
+        while self.current().type in (TokenType.PLUS, TokenType.MINUS):
+            op = self.current().value
+            self.eat(self.current().type)
+            right = self.parse_factor()
+            node = BinaryOp(node, op, right)
+
+        return node
+    def parse_factor(self):
+        node = self.parse_primary()
+
+        while self.current().type in (TokenType.STAR, TokenType.DIV, TokenType.MOD):
+            op = self.current().value
+            self.eat(self.current().type)
+            right = self.parse_primary()
+            node = BinaryOp(node, op, right)
+
+        return node

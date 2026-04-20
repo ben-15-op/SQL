@@ -174,7 +174,7 @@ class LogicalOptimizer:
                 child=filter_node.child,
             )
 
-            # Return reordered plan: Filter → Project
+            # Return reordered plan: Filter -> Project
             return LogicalFilter(filter_node.predicate, new_project)
 
         return project

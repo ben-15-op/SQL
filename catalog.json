@@ -1,1 +1,1 @@
-{"users": {"columns": {"id": "TokenType.INT", "email": "TokenType.TEXT"}, "rows": [{"id": 1, "email": "a@gmail.com"}, {"id": 2, "email": "b@gmail.com"}], "primary_key": "id", "unique_keys": ["email"]}, "uuuus": {"columns": {"id": "TokenType.INT", "customer_id": "TokenType.INT"}, "rows": [], "primary_key": null, "unique_keys": []}, "Teacher": {"columns": {"id": "TokenType.INT", "customer_id": "TokenType.INT"}, "rows": [], "primary_key": null, "unique_keys": []}}
+{}

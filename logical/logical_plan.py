@@ -107,8 +107,9 @@ class LogicalInsert(LogicalPlan):
         print(f"{indent}└── Values: {self.values}")
 
 class LogicalDropTable(LogicalPlan):
-    def __init__(self, table):
+    def __init__(self, table, if_exists=False):
         self.table = table
+        self.if_exists = if_exists
 
     def pretty_print(self, indent=""):
         print(f"{indent}LogicalDropTable: {self.table}")

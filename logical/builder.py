@@ -33,7 +33,7 @@ class LogicalPlanBuilder:
         if isinstance(ast, CreateTable):
             return LogicalCreateTable(ast.name, ast.columns,getattr(ast, "foreign_keys", []),getattr(ast, "primary_key", None),getattr(ast, "unique_keys", []))
         if isinstance(ast, DropTable):
-            return LogicalDropTable(ast.table)
+            return LogicalDropTable(ast.table, getattr(ast, 'if_exists', False))
         if isinstance(ast, Delete):
             return LogicalDelete(ast.table, ast.where)
         if isinstance(ast, Update):
@@ -63,6 +63,15 @@ class LogicalPlanBuilder:
         # GROUP BY + AGGREGATES
         if node.group_by:
             plan = LogicalGroupBy(node.group_by, node.columns, plan)
+        else:
+            # Auto-detect aggregate-only SELECT (COUNT/SUM/AVG/MIN/MAX without GROUP BY)
+            agg_funcs = ('COUNT(', 'SUM(', 'AVG(', 'MIN(', 'MAX(')
+            has_agg = any(
+                isinstance(c, str) and any(c.upper().startswith(f) for f in agg_funcs)
+                for c in node.columns
+            )
+            if has_agg:
+                plan = LogicalGroupBy([], node.columns, plan)
 
         # HAVING
         if node.having:

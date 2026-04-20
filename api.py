@@ -44,6 +44,7 @@ class QueryResponse(BaseModel):
     timings: dict
     plan_tree: dict
     ra_string: Optional[str] = None
+    ra_optimized: Optional[str] = None
 
 # We can re-use the predicate_to_string function directly from util
 def serialize_plan(plan) -> dict:
@@ -132,6 +133,9 @@ def execute_query(req: QueryRequest):
         optimized_plan = optimizer.optimize(logical_plan)
         timings["optimize_ms"] = round((time.perf_counter() - t0) * 1000, 2)
         
+        # Optimized RA string for comparison
+        ra_optimized = dml_ddl_to_ra(optimized_plan)
+        
         # Serialize Plan for UI
         plan_tree = serialize_plan(optimized_plan)
         
@@ -146,7 +150,8 @@ def execute_query(req: QueryRequest):
                 message="Command executed successfully.",
                 timings=timings,
                 plan_tree=plan_tree,
-                ra_string=ra_string
+                ra_string=ra_string,
+                ra_optimized=ra_optimized
             )
 
         # Execution
@@ -170,7 +175,8 @@ def execute_query(req: QueryRequest):
             columns=columns,
             timings=timings,
             plan_tree=plan_tree,
-            ra_string=ra_string
+            ra_string=ra_string,
+            ra_optimized=ra_optimized
         )
 
     except Exception as e:

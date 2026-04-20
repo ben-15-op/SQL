@@ -34,7 +34,9 @@ class PhysicalPlanBuilder:
         elif isinstance(plan, LogicalJoin):
             left = self.build(plan.left_child)
             right = self.build(plan.right_child)
-            return NestedLoopJoinExec(left, right, plan.join_type, plan.condition)
+            left_table = getattr(plan.left_child, 'table', '') or ''
+            right_table = getattr(plan.right_child, 'table', '') or ''
+            return NestedLoopJoinExec(left, right, plan.join_type, plan.condition, left_table, right_table)
 
         elif isinstance(plan, LogicalInsert):
             table = self.catalog.get_table(plan.table)

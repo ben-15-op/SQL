@@ -15,7 +15,7 @@ def predicate_to_string(pred):
         left = pred.left
         right = pred.right
 
-        # If nested condition → recurse
+        # If nested condition -> recurse
         if hasattr(left, "op"):
             left = predicate_to_string(left)
         if hasattr(right, "op"):
@@ -89,7 +89,7 @@ def to_relational_algebra(plan, indent="", is_last=True):
         print(prefix + plan.table)
 
     # -------------------------
-    # WHERE → σ
+    # WHERE -> σ
     # -------------------------
     elif node_type == "LogicalFilter":
         predicate = predicate_to_string(plan.predicate)
@@ -97,7 +97,7 @@ def to_relational_algebra(plan, indent="", is_last=True):
         to_relational_algebra(plan.child, next_indent, True)
 
     # -------------------------
-    # PROJECT → π
+    # PROJECT -> π
     # -------------------------
     elif node_type == "LogicalProject":
         cols = ", ".join(plan.columns)
@@ -105,7 +105,7 @@ def to_relational_algebra(plan, indent="", is_last=True):
         to_relational_algebra(plan.child, next_indent, True)
 
     # -------------------------
-    # JOIN → ⨝
+    # JOIN -> ⨝
     # -------------------------
     elif node_type == "LogicalJoin":
         condition = predicate_to_string(plan.condition)
@@ -116,7 +116,7 @@ def to_relational_algebra(plan, indent="", is_last=True):
         to_relational_algebra(plan.right_child, next_indent, True)
 
     # -------------------------
-    # GROUP BY → γ
+    # GROUP BY -> γ
     # -------------------------
     elif node_type == "LogicalGroupBy":
         group_cols = ", ".join(plan.group_cols)
@@ -131,7 +131,7 @@ def to_relational_algebra(plan, indent="", is_last=True):
         to_relational_algebra(plan.child, next_indent, True)
 
     # -------------------------
-    # HAVING → σ after γ
+    # HAVING -> σ after γ
     # -------------------------
     elif node_type == "LogicalHaving":
         predicate = predicate_to_string(plan.predicate)
@@ -139,7 +139,7 @@ def to_relational_algebra(plan, indent="", is_last=True):
         to_relational_algebra(plan.child, next_indent, True)
 
     # -------------------------
-    # ORDER BY → τ
+    # ORDER BY -> τ
     # -------------------------
     elif node_type == "LogicalOrderBy":
         print(prefix + f"τ({plan.column} {plan.order_type})")
