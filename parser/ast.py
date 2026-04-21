@@ -86,8 +86,10 @@ class Join:
 
     def pretty_print(self, indent=""):
         print(f"{indent}├── {self.join_type} JOIN {self.table} ON")
-        #self.condition.pretty_print(indent + "│   ")
-        print(f"{indent}│   {self.condition}")
+        if self.condition:
+            self.condition.pretty_print(indent + "│   ")
+        else:
+            print(f"{indent}│   (no condition)")
 
 class Where:
     def __init__(self, left, op=None, right=None):
@@ -106,8 +108,13 @@ class Where:
 
         if isinstance(self.right, Where):
             self.right.pretty_print(indent + "  ")
-        elif self.right:
+        elif self.right is not None:
             print(f"{indent}└── {self.right}")
+
+    def __str__(self):
+        if self.op:
+            return f"({self.left} {self.op} {self.right})"
+        return str(self.left)
 
 class DropTable:
     def __init__(self, table, if_exists=False):
@@ -153,10 +160,37 @@ class BinaryOp(Expr):
     def __repr__(self):
         return self.__str__()
 
+    def pretty_print(self, indent=""):
+        # Left child
+        if hasattr(self.left, 'pretty_print'):
+            self.left.pretty_print(indent + "  ")
+        else:
+            print(f"{indent}\u251c\u2500\u2500 {self.left}")
+        # Operator
+        print(f"{indent}\u251c\u2500\u2500 {self.op}")
+        # Right child
+        if hasattr(self.right, 'pretty_print'):
+            self.right.pretty_print(indent + "  ")
+        else:
+            print(f"{indent}\u2514\u2500\u2500 {self.right}")
+
 class UnaryOp(Expr):
     def __init__(self, op, operand):
         self.op = op
         self.operand = operand
+
+    def __str__(self):
+        return f"({self.op} {self.operand})"
+
+    def __repr__(self):
+        return self.__str__()
+
+    def pretty_print(self, indent=""):
+        print(f"{indent}\u251c\u2500\u2500 {self.op}")
+        if hasattr(self.operand, 'pretty_print'):
+            self.operand.pretty_print(indent + "  ")
+        else:
+            print(f"{indent}\u2514\u2500\u2500 {self.operand}")
 
 class Literal(Expr):
     def __init__(self, value):
@@ -167,11 +201,17 @@ class Literal(Expr):
     def __repr__(self):
         return str(self.value)
 
+    def pretty_print(self, indent=""):
+        print(f"{indent}\u2514\u2500\u2500 {self.value}")
+
 class Column(Expr):
     def __init__(self, name):
         self.name = name
     def __str__(self):
-        return self.value
+        return self.name
 
     def __repr__(self):
-        return str(self.value)
+        return self.name
+
+    def pretty_print(self, indent=""):
+        print(f"{indent}\u251c\u2500\u2500 {self.name}")

@@ -1,5 +1,7 @@
 import time
 import os
+import io
+import contextlib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -45,6 +47,21 @@ class QueryResponse(BaseModel):
     plan_tree: dict
     ra_string: Optional[str] = None
     ra_optimized: Optional[str] = None
+    ast_pretty: Optional[str] = None
+    logical_plan_pretty: Optional[str] = None
+
+def capture_pretty(obj) -> str:
+    """Capture obj.pretty_print() output as a plain string, preserving partial output."""
+    if obj is None:
+        return ""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        try:
+            obj.pretty_print()
+        except Exception as e:
+            # Keep whatever was already captured and append error note
+            print(f"  [render error: {e}]")
+    return buf.getvalue()
 
 # We can re-use the predicate_to_string function directly from util
 def serialize_plan(plan) -> dict:
@@ -115,6 +132,7 @@ def execute_query(req: QueryRequest):
         parser = Parser(tokens)
         ast = parser.parse()
         timings["parse_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+        ast_pretty = capture_pretty(ast)
 
         # Semantic Analysis
         t0 = time.perf_counter()
@@ -125,7 +143,7 @@ def execute_query(req: QueryRequest):
         t0 = time.perf_counter()
         logical_plan = logical_builder.build(ast)
         timings["logical_ms"] = round((time.perf_counter() - t0) * 1000, 2)
-
+        logical_plan_pretty = capture_pretty(logical_plan)
         ra_string = plan_to_ra_string(logical_plan)
         
         # Optimization
@@ -151,7 +169,9 @@ def execute_query(req: QueryRequest):
                 timings=timings,
                 plan_tree=plan_tree,
                 ra_string=ra_string,
-                ra_optimized=ra_optimized
+                ra_optimized=ra_optimized,
+                ast_pretty=ast_pretty,
+                logical_plan_pretty=logical_plan_pretty
             )
 
         # Execution
@@ -176,7 +196,9 @@ def execute_query(req: QueryRequest):
             timings=timings,
             plan_tree=plan_tree,
             ra_string=ra_string,
-            ra_optimized=ra_optimized
+            ra_optimized=ra_optimized,
+            ast_pretty=ast_pretty,
+            logical_plan_pretty=logical_plan_pretty
         )
 
     except Exception as e:

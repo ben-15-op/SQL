@@ -385,13 +385,29 @@ export default function App() {
                           <div style={{ fontSize: '10px', textTransform: 'uppercase', color: C.lo, fontWeight: 500, letterSpacing: '0.5px', marginBottom: '12px', fontFamily: "'Geist Mono', monospace" }}>Relational Algebra Expression</div>
                           <div style={{
                             background: C.elevated, border: `0.5px solid ${C.border}`, borderRadius: '3px',
-                            padding: '20px', fontFamily: "'Geist Mono', monospace", fontSize: '14px',
-                            color: C.hi, lineHeight: '2', letterSpacing: '0.3px',
+                            padding: '20px',
                           }}>
-                            {response.ra_string || 'No relational algebra expression available for this query type.'}
+                            {response.ra_string
+                              ? (() => {
+                                  const segs = response.ra_string.split(/([\u251c\u2514\u2502\u2500]+)/g);
+                                  return (
+                                    <pre style={{ margin: 0, padding: 0, fontFamily: "'Geist Mono', monospace", fontSize: '13px', color: C.hi, lineHeight: '2', background: 'transparent', whiteSpace: 'pre', overflowX: 'auto' }}>
+                                      {segs.map((seg: string, i: number) =>
+                                        /^[\u251c\u2514\u2502\u2500]+$/.test(seg)
+                                          ? <span key={i} style={{ color: C.lo }}>{seg}</span>
+                                          : <span key={i}>{seg}</span>
+                                      )}
+                                    </pre>
+                                  );
+                                })()
+                              : <span style={{ color: C.lo, fontFamily: "'Geist Mono', monospace", fontSize: '13px' }}>No relational algebra expression available for this query type.</span>
+                            }
                           </div>
                         </div>
                       )}
+
+
+
 
                       {/* ── TIMINGS TAB ── */}
                       {resultTab === 'timings' && response.timings && (
