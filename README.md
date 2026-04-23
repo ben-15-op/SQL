@@ -16,27 +16,68 @@ A full-pipeline SQL engine built from scratch in Python, featuring lexical analy
 
 ## Installation & Setup
 
-### Prerequisites
+### Prerequisites   
 
-- **Python** ≥ 3.10
-- **Node.js** ≥ 18
-- **Git**
+- **Python** ≥ 3.10 — [Download](https://www.python.org/downloads/)
+- **Node.js** ≥ 18 — [Download](https://nodejs.org/)
+- **Git** — [Download](https://git-scm.com/)
+- **GCC / Clang** *(optional)* — only needed for the legacy `codegen` / `compiler` modules
 
 ### Install
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/ben-15-op/SQL.git
 cd SQL
 
-# Install Python dependencies
+# 2. Install Python dependencies
 pip install -r requirements.txt
 
-# Install Frontend dependencies
+# 3. Install Frontend dependencies
 cd ui
 npm install
 cd ..
 ```
+
+### Dependencies
+
+#### Python Packages (installed via `pip install -r requirements.txt`)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `fastapi` | 0.111.0 | High-performance async web framework — serves the `/query` and `/catalog` API endpoints |
+| `uvicorn` | 0.30.1 | ASGI server that runs the FastAPI application |
+| `pydantic` | 2.7.2 | Data validation and serialization for API request/response models |
+
+#### Python Standard Library Modules (no installation needed)
+
+| Module | Used In | Purpose |
+|--------|---------|---------|
+| `json` | `storage/catalog.py` | Read/write persistent catalog data (`catalog.json`) |
+| `os` | Multiple modules | File path handling, environment variables |
+| `io`, `contextlib` | `api.py` | Capture `pretty_print()` output as strings |
+| `time` | `api.py` | Performance timing for each pipeline stage |
+| `subprocess` | `compiler/`, `runtime/` | Execute GCC and compiled binaries (legacy modules) |
+| `unittest` | `test_*.py` | Unit testing framework |
+| `enum` | `lexer/tokens.py` | Token type definitions |
+| `re` | `lexer/lexer.py` | Regular expression-based tokenization |
+
+#### Node.js Packages (installed via `npm install` in `ui/`)
+
+| Package | Purpose |
+|---------|---------|
+| `react` / `react-dom` | Core UI framework for the MiniSQL Studio frontend |
+| `@xyflow/react` | Interactive node-graph library for query plan visualization |
+| `axios` | HTTP client for communicating with the FastAPI backend |
+| `lucide-react` | SVG icon library used throughout the UI |
+| `vite` | Dev server and production bundler |
+| `typescript` | Static type checking for all `.tsx` source files |
+
+#### Testing
+
+| Package | Install | Purpose |
+|---------|---------|---------|
+| `pytest` *(optional)* | `pip install pytest` | Alternative test runner (can also use `python -m unittest`) |
 
 ### Run
 
