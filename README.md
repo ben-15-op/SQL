@@ -73,12 +73,6 @@ cd ..
 | `vite` | Dev server and production bundler |
 | `typescript` | Static type checking for all `.tsx` source files |
 
-#### Testing
-
-| Package | Install | Purpose |
-|---------|---------|---------|
-| `pytest` *(optional)* | `pip install pytest` | Alternative test runner (can also use `python -m unittest`) |
-
 ### Run
 
 **Terminal 1 — Backend:**
@@ -113,17 +107,22 @@ make help       # Show all available targets
 
 ### Run Tests
 
-```bash
-# All tests
-python -m pytest test_*.py -v
+Test files are standalone scripts — run them directly with Python:
 
-# Individual modules
-python -m pytest test_lexer.py -v
-python -m pytest test_parser.py -v
-python -m pytest test_semantic.py -v
-python -m pytest test_fullpipeline.py -v
-python -m pytest test_joins.py -v
-python -m pytest test_storage.py -v
+```bash
+python test_lexer.py
+python test_parser.py
+python test_semantic.py
+python test_logical.py
+python test_optimizer.py
+python test_fullpipeline.py
+python test_joins.py
+python test_storage.py
+python test_integrity.py
+python test_codegen.py
+python test_compiler.py
+python test_in.py
+python test_ri.py
 ```
 
 > **Note:** Some tests create/modify `catalog.json`. Delete it before re-running if tests interfere.

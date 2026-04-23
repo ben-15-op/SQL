@@ -43,37 +43,57 @@ build:  ## Build the frontend for production
 
 # ── Test ─────────────────────────────────────────────────
 
-.PHONY: test test-lexer test-parser test-semantic test-logical test-optimizer test-pipeline test-joins test-storage test-integrity
+.PHONY: test test-lexer test-parser test-semantic test-logical test-optimizer test-pipeline test-joins test-storage test-integrity test-codegen test-in test-ri
 
 test:  ## Run ALL tests
-	$(PYTEST) test_*.py -v
+	$(PYTHON) test_lexer.py
+	$(PYTHON) test_parser.py
+	$(PYTHON) test_semantic.py
+	$(PYTHON) test_logical.py
+	$(PYTHON) test_optimizer.py
+	$(PYTHON) test_fullpipeline.py
+	$(PYTHON) test_joins.py
+	$(PYTHON) test_storage.py
+	$(PYTHON) test_integrity.py
+	$(PYTHON) test_codegen.py
+	$(PYTHON) test_in.py
+	$(PYTHON) test_ri.py
 
 test-lexer:  ## Run lexer tests
-	$(PYTEST) test_lexer.py -v
+	$(PYTHON) test_lexer.py
 
 test-parser:  ## Run parser tests
-	$(PYTEST) test_parser.py -v
+	$(PYTHON) test_parser.py
 
 test-semantic:  ## Run semantic analyzer tests
-	$(PYTEST) test_semantic.py -v
+	$(PYTHON) test_semantic.py
 
 test-logical:  ## Run logical plan tests
-	$(PYTEST) test_logical.py -v
+	$(PYTHON) test_logical.py
 
 test-optimizer:  ## Run optimizer tests
-	$(PYTEST) test_optimizer.py -v
+	$(PYTHON) test_optimizer.py
 
 test-pipeline:  ## Run full pipeline tests
-	$(PYTEST) test_fullpipeline.py -v
+	$(PYTHON) test_fullpipeline.py
 
 test-joins:  ## Run join tests
-	$(PYTEST) test_joins.py -v
+	$(PYTHON) test_joins.py
 
 test-storage:  ## Run storage layer tests
-	$(PYTEST) test_storage.py -v
+	$(PYTHON) test_storage.py
 
 test-integrity:  ## Run integrity constraint tests
-	$(PYTEST) test_integrity.py -v
+	$(PYTHON) test_integrity.py
+
+test-codegen:  ## Run code generation tests
+	$(PYTHON) test_codegen.py
+
+test-in:  ## Run IN clause tests
+	$(PYTHON) test_in.py
+
+test-ri:  ## Run referential integrity tests
+	$(PYTHON) test_ri.py
 
 # ── Clean ────────────────────────────────────────────────
 
