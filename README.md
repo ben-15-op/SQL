@@ -1,5 +1,13 @@
 # MiniSQL — A Miniature Relational Database Engine
 
+**Group 18** — Compiler Design Lab Project
+
+| Name | Roll Number |
+|------|-------------|
+| Rishikesh Reddy | CS23B015 |
+| Inu Sahithi | CS23B048 |
+| Dhanya Koishwari | CS23B055 |
+
 A full-pipeline SQL engine built from scratch in Python, featuring lexical analysis, parsing, semantic validation, logical plan generation, query optimization, physical execution via the Volcano Iterator model, and a React-based IDE frontend (**MiniSQL Studio**).
 
 ### 🌐 Live Demo — [https://sql-a8yx.onrender.com/](https://sql-a8yx.onrender.com/)
@@ -47,6 +55,21 @@ npm run dev
 
 Open the URL shown by Vite (typically `http://localhost:5173`).
 
+### Using the Makefile
+
+If you have `make` installed (Linux/macOS, or via `choco install make` on Windows):
+
+```bash
+make install    # Install all dependencies (Python + Node)
+make backend    # Start the FastAPI backend (port 8000)
+make frontend   # Start the Vite dev server (port 5173)
+make run        # Start both servers together (Windows)
+make test       # Run all Python unit tests
+make build      # Build frontend for production
+make clean      # Remove caches and build artifacts
+make help       # Show all available targets
+```
+
 ### Run Tests
 
 ```bash
@@ -76,7 +99,7 @@ SQL String ──▶ Lexer ──▶ Parser (AST) ──▶ Semantic Analyzer �
 ```
 
 The project ships with **MiniSQL Studio**, a React + TypeScript IDE featuring:
-- Rich SQL editor with many unique features and different sections
+- Rich SQL editor with syntax highlighting
 - Real-time pipeline visualization (Tokens → AST → Logical Plan → Optimized Plan → Results)
 - Interactive query graph (powered by React Flow)
 - Catalog browser and storage monitor
@@ -210,4 +233,4 @@ The FastAPI server serves the built React frontend from `ui/dist/` as static fil
 
 ## License
 
-This project was developed as a Compiler Design Lab project.
+This project was developed as a Compiler Design Lab project by **Group 18** — Rishikesh Reddy, Inu Sahithi, and Dhanya Koishwari.
