@@ -117,7 +117,6 @@ python test_logical.py
 python test_optimizer.py
 python test_fullpipeline.py
 python test_joins.py
-python test_storage.py
 python test_integrity.py
 python test_codegen.py
 python test_compiler.py
