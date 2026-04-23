@@ -76,7 +76,7 @@ SQL String ──▶ Lexer ──▶ Parser (AST) ──▶ Semantic Analyzer �
 ```
 
 The project ships with **MiniSQL Studio**, a React + TypeScript IDE featuring:
-- Rich SQL editor with syntax highlighting
+- Rich SQL editor with many unique features and different sections
 - Real-time pipeline visualization (Tokens → AST → Logical Plan → Optimized Plan → Results)
 - Interactive query graph (powered by React Flow)
 - Catalog browser and storage monitor
