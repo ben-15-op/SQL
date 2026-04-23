@@ -6,7 +6,7 @@
 |------|-------------|
 | Rishikesh Reddy | CS23B015 |
 | Inu Sahithi | CS23B048 |
-| Dhanya Koishwari | CS23B055 |
+| Dhanya Koteswari | CS23B055 |
 
 A full-pipeline SQL engine built from scratch in Python, featuring lexical analysis, parsing, semantic validation, logical plan generation, query optimization, physical execution via the Volcano Iterator model, and a React-based IDE frontend (**MiniSQL Studio**).
 
@@ -233,4 +233,4 @@ The FastAPI server serves the built React frontend from `ui/dist/` as static fil
 
 ## License
 
-This project was developed as a Compiler Design Lab project by **Group 18** — Rishikesh Reddy, Inu Sahithi, and Dhanya Koishwari.
+This project was developed as a Compiler Design Lab project by **Group 18** — Rishikesh Reddy, Inu Sahithi, and Dhanya Koteswari.
