@@ -2,7 +2,16 @@
 
 A full-pipeline SQL engine built from scratch in Python, featuring lexical analysis, parsing, semantic validation, logical plan generation, query optimization, physical execution via the Volcano Iterator model, and a React-based IDE frontend (**MiniSQL Studio**).
 
-### 🌐 Live Demo — [https://sql-a8yx.onrender.com/](https://sql-a8yx.onrender.com/)
+## Table of Contents
+
+1. [Quick Start- installations& pre requistes](#quick-start)
+2. [Overview](#overview)
+3. [Architecture](#architecture)
+4. [Project Structure](#project-structure)
+5. [Usage](#usage)
+6. [Running Tests](#running-tests)
+7. [Supported SQL](#supported-sql)
+8. [Deployment](#deployment)
 
 ---
 
@@ -97,18 +106,6 @@ make help       # Show all available targets
 
 ---
 
-## Table of Contents
-
-1. [Quick Start](#quick-start)
-2. [Overview](#overview)
-3. [Architecture](#architecture)
-4. [Project Structure](#project-structure)
-5. [Usage](#usage)
-6. [Running Tests](#running-tests)
-7. [Supported SQL](#supported-sql)
-8. [Deployment](#deployment)
-
----
 
 ## Overview
 
@@ -125,7 +122,7 @@ The project also ships with a **React + TypeScript** IDE (MiniSQL Studio) that p
 - Interactive query graph (powered by React Flow)
 - Catalog browser and storage monitor
 - Light / Dark theme toggle
-
+### 🌐 Live Demo — [https://sql-a8yx.onrender.com/](https://sql-a8yx.onrender.com/)
 ---
 
 ## Architecture
